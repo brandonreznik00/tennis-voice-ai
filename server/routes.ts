@@ -53,9 +53,6 @@ mediaWss.on("connection", (ws) => {
 });
 
 
-    ws.on("close", () => console.log("❌ Media stream closed"));
-  });
-
   // ✅ Optional: WebSocket for client dashboard
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   wss.on("connection", () => console.log("📡 Client WebSocket connected"));
