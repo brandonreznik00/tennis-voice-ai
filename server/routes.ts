@@ -97,9 +97,10 @@ const twiml = `<?xml version="1.0" encoding="UTF-8"?>
   </Connect>
 </Response>`;
 
-
+console.log("✅ Sending TwiML to Twilio:", twiml);
       res.type('text/xml');
       res.send(twiml);
+      
 
       // Update call status
       await storage.updateCall(call.id, { status: 'in-progress' });
