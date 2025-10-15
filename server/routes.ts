@@ -52,13 +52,6 @@ const activeSessions = new Map<string, { twilioWs: WebSocket; openaiClient: Open
   return httpServer;
 }
 
-  ws.on("close", () => {
-    console.log("❌ Media stream WebSocket closed");
-    clearInterval(keepAlive);
-  });
-});
-
-
 
   // WebSocket server for real-time updates and call handling
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
