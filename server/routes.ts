@@ -6,7 +6,10 @@ import { getTwilioClient, getTwilioFromPhoneNumber } from "./twilio-client";
 import { OpenAIRealtimeClient } from "./openai-realtime";
 import { insertCallSchema, insertBookingSchema, insertClubSettingsSchema } from "@shared/schema";
 import voiceRouter from "./voice";
-app.use("/api/twilio/incoming", voiceRouter);
+const router = express.Router();
+
+router.use("/api/twilio/incoming", voiceRouter);
+
 
 // Store active call sessions
 const activeSessions = new Map<string, { twilioWs: WebSocket; openaiClient: OpenAIRealtimeClient; callId: string; streamSid: string }>();
