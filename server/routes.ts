@@ -5,11 +5,13 @@ import { storage } from "./storage";
 import { getTwilioClient, getTwilioFromPhoneNumber } from "./twilio-client";
 import { OpenAIRealtimeClient } from "./openai-realtime";
 import { insertCallSchema, insertBookingSchema, insertClubSettingsSchema } from "@shared/schema";
-import voiceRouter from "./voice";
+import { handleVoice } from "./voice.js";
 
-const router = express.Router();
-router.use("/api/twilio/incoming", voiceRouter);
+export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
 
+  // ✅ Twilio incoming webhook
+  app.post("/api/twilio/incoming", handleVoice);
 
 // Store active call sessions
 const activeSessions = new Map<string, { twilioWs: WebSocket; openaiClient: OpenAIRealtimeClient; callId: string; streamSid: string }>();
