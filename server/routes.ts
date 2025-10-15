@@ -25,13 +25,13 @@ const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream"
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
-  // Track last ping to detect disconnects
-  let lastPing = Date.now();
+  // 👇 send immediate ack
+  ws.send(JSON.stringify({ event: "connected", name: "tennis-voice-ai" }));
 
-  // Send periodic keepalive pings to Twilio
+  let lastPing = Date.now();
   const keepAlive = setInterval(() => {
     if (Date.now() - lastPing > 15000) {
-      console.log("⚠️ No response from Twilio for 15s — closing stream.");
+      console.log("⚠️ No response from Twilio for 15s – closing stream.");
       clearInterval(keepAlive);
       ws.close();
     } else if (ws.readyState === ws.OPEN) {
@@ -40,27 +40,21 @@ mediaWss.on("connection", (ws) => {
   }, 5000);
 
   ws.on("message", (msg) => {
+    lastPing = Date.now();
     try {
       const data = JSON.parse(msg.toString());
-      lastPing = Date.now(); // update timestamp for pings
-// Send ACK when Twilio connects — keeps the call alive
-if (data.event === "connected") {
-  console.log("🔗 Twilio connection acknowledged");
-  ws.send(JSON.stringify({ event: "connected" }));
-}
-
       if (data.event === "start") {
-        console.log("🎬 Stream started:", data.start.streamSid);
+        console.log("🎯 Stream started:", data.start.streamSid);
       } else if (data.event === "media") {
         const audio = Buffer.from(data.media.payload, "base64");
-        if (audio.length > 0) console.log("🎧 Received audio packet:", audio.length);
+        console.log("🎧 Received audio packet:", audio.length);
       } else if (data.event === "stop") {
-        console.log("🛑 Stream stopped by Twilio.");
+        console.log("🛑 Stream stopped by Twilio");
         clearInterval(keepAlive);
         ws.close();
       }
-    } catch (error) {
-      console.error("❌ Error handling media stream message:", error);
+    } catch (e) {
+      console.error("⚠️ Error parsing Twilio message:", e);
     }
   });
 
