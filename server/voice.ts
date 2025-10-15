@@ -1,24 +1,21 @@
-import express, { Request, Response } from "express";
+// server/voice.ts
+import { Request, Response } from "express";
 import twilio from "twilio";
 
-const router = express.Router();
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
-// POST route Twilio calls when a call starts
-router.post("/", (req: Request, res: Response) => {
+// ✅ Handles incoming calls from Twilio
+export const handleVoice = (req: Request, res: Response) => {
   const twiml = new VoiceResponse();
 
-  // Simple greeting so Twilio doesn't hang up immediately
-  twiml.say({ voice: "Polly.Joanna" }, "Hi there! Connecting you to the AI receptionist now.");
-
-  // Tell Twilio to stream the audio to your WebSocket server
+  // Create <Connect><Stream> so Twilio sends live audio
   const connect = twiml.connect();
   connect.stream({
-    url: "wss://tennis-voice-ai.onrender.com/media-stream",
+    url: "wss://tennis-voice-ai.onrender.com/media-stream", // this WebSocket will handle the AI side
   });
 
   res.type("text/xml");
   res.send(twiml.toString());
-});
+};
 
-export default router;
+export default { handleVoice };
