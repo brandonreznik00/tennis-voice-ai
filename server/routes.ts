@@ -18,8 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 // WebSocket endpoint for Twilio Media Stream
 
-mediaWss.on("connection", (ws) => {
-  console.log("✅ Twilio Media Stream connected!");
+
 
   ws.on("message", (msg) => {
     console.log("📡 Incoming audio frame from Twilio:", msg.toString().slice(0, 60));
@@ -146,7 +145,9 @@ console.log("✅ Sending TwiML to Twilio:", twiml);
 
   // Twilio Media Stream WebSocket endpoint (using separate WebSocket server)
   const mediaWss = new WebSocketServer({ server: httpServer, path: '/api/twilio/media-stream' });
-  
+mediaWss.on("connection", (ws) => {
+  console.log("✅ Twilio Media Stream connected!");
+
   mediaWss.on('connection', async (ws) => {
     console.log('Twilio Media stream connected');
     let callSid: string;
