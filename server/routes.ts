@@ -1,54 +1,46 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { getTwilioClient, getTwilioFromPhoneNumber } from "./twilio-client";
+import { getTwilioClient } from "./twilio-client";
 import { OpenAIRealtimeClient } from "./openai-realtime";
 import { insertCallSchema, insertBookingSchema, insertClubSettingsSchema } from "@shared/schema";
-import { handleVoice } from "./voice.js";
-import { WebSocketServer } from "ws";
+import handleVoice from "./voice.js";
 
-async function registerRoutes(app: Express): Promise<Server> {
-
+export async function registerRoutes(app: Express): Promise<Server> {
+  // ✅ Create HTTP + WebSocket server together
   const httpServer = createServer(app);
 
-  // ✅ Twilio incoming webhook
+  // ✅ Twilio webhook
   app.post("/api/twilio/incoming", handleVoice);
 
-// Store active call sessions
-const activeSessions = new Map<string, { twilioWs: WebSocket; openaiClient: OpenAIRealtimeClient; callId: string; streamSid: string }>();
-
-  // ✅ WebSocket endpoint for Twilio Media Stream
+  // ✅ Media Stream WebSocket endpoint
   const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream" });
 
   mediaWss.on("connection", (ws) => {
     console.log("✅ Twilio Media Stream connected!");
 
-    // 👇 Must send this immediately or Twilio hangs up
-    ws.send(JSON.stringify({ event: "connected" }));
+    ws.send(JSON.stringify({ event: "connected" })); // required ack to Twilio
 
     ws.on("message", (msg) => {
       try {
         const data = JSON.parse(msg.toString());
-        if (data.event === "start") {
-          console.log("🎯 Stream started:", data.start.streamSid);
-        } else if (data.event === "media") {
-          console.log("🎧 Received audio packet:", data.media.payload.length);
-          ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
-        } else if (data.event === "stop") {
-          console.log("🛑 Stream stopped by Twilio");
-          ws.close();
-        }
+        if (data.event === "start") console.log("🎯 Stream started");
+        else if (data.event === "media") console.log("🎧 Audio packet received");
+        else if (data.event === "stop") console.log("🛑 Stream stopped");
       } catch (err) {
         console.error("⚠️ Error handling Twilio message:", err);
       }
     });
 
-    ws.on("error", (err) => console.error("⚠️ WS Error:", err));
     ws.on("close", () => console.log("❌ Media stream closed"));
   });
 
-  // ✅ End of registerRoutes
+  // ✅ WebSocket for client UI
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  wss.on("connection", () => console.log("Client connected to WebSocket"));
+
+  // ✅ Return server
   return httpServer;
 }
 
