@@ -25,8 +25,9 @@ const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream"
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
-  // 👇 send immediate ack
-  ws.send(JSON.stringify({ event: "connected", name: "tennis-voice-ai" }));
+// ✅ Twilio requires an initial ack in this exact format
+ws.send(JSON.stringify({ event: "connected" }));
+
 
   let lastPing = Date.now();
   const keepAlive = setInterval(() => {
