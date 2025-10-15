@@ -42,6 +42,11 @@ mediaWss.on("connection", (ws) => {
     try {
       const data = JSON.parse(msg.toString());
       lastPing = Date.now(); // update timestamp for pings
+// Send ACK when Twilio connects — keeps the call alive
+if (data.event === "connected") {
+  console.log("🔗 Twilio connection acknowledged");
+  ws.send(JSON.stringify({ event: "connected" }));
+}
 
       if (data.event === "start") {
         console.log("🎬 Stream started:", data.start.streamSid);
