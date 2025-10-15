@@ -428,7 +428,7 @@ console.log("✅ Sending TwiML to Twilio:", twiml);
   });
 
   return httpServer;
-};
+}
 export { registerRoutes };
 
 
