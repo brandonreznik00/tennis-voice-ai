@@ -4,7 +4,6 @@ import { Request, Response } from "express";
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
 export const handleVoice = (req: Request, res: Response) => {
-  const twiml = new VoiceResponse();
 
   // Tell Twilio to stream live audio to your WebSocket
 const twiml = new VoiceResponse();
