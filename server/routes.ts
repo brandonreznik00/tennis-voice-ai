@@ -18,54 +18,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 // WebSocket endpoint for Twilio Media Stream
 
-const mediaWss = new WebSocketServer({ server: httpServer, path: "/api/twilio/media-stream" });
+// WebSocket endpoint for Twilio Media Stream
+const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream" });
+
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
+  // Track last ping to detect disconnects
   let lastPing = Date.now();
 
-  // Send pings to keep connection alive
-  const pingInterval = setInterval(() => {
-    if (Date.now() - lastPing > 10000) {
-      console.log("⚠️ No pings from Twilio for 10s, closing stream.");
-      clearInterval(pingInterval);
+  // Send periodic keepalive pings to Twilio
+  const keepAlive = setInterval(() => {
+    if (Date.now() - lastPing > 15000) {
+      console.log("⚠️ No response from Twilio for 15s — closing stream.");
+      clearInterval(keepAlive);
       ws.close();
     } else if (ws.readyState === ws.OPEN) {
-      ws.ping();
+      ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
     }
   }, 5000);
 
   ws.on("message", (msg) => {
     try {
       const data = JSON.parse(msg.toString());
+      lastPing = Date.now(); // update timestamp for pings
 
       if (data.event === "start") {
-        console.log("🎯 Stream started:", data.start.streamSid);
+        console.log("🎬 Stream started:", data.start.streamSid);
       } else if (data.event === "media") {
-        // Twilio sends base64 audio packets ~20x per second
         const audio = Buffer.from(data.media.payload, "base64");
-        if (audio.length > 0) {
-          console.log("🎧 Received audio packet:", audio.length);
-        }
-        // ✅ Keep-alive ACK: prevents Twilio from thinking connection died
-        ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
+        if (audio.length > 0) console.log("🎧 Received audio packet:", audio.length);
       } else if (data.event === "stop") {
-        console.log("🛑 Stream stopped");
-        clearInterval(pingInterval);
+        console.log("🛑 Stream stopped by Twilio.");
+        clearInterval(keepAlive);
         ws.close();
       }
-    } catch (err) {
-      console.error("⚠️ Error handling Twilio message:", err);
+    } catch (error) {
+      console.error("❌ Error handling media stream message:", error);
     }
   });
 
-  ws.on("ping", () => (lastPing = Date.now()));
-
   ws.on("close", () => {
-    clearInterval(pingInterval);
-    console.log("❌ Media stream closed");
+    console.log("❌ Media stream WebSocket closed");
+    clearInterval(keepAlive);
   });
 });
+
 
 
   // WebSocket server for real-time updates and call handling
