@@ -87,13 +87,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Be professional, friendly, and assist callers with court bookings, club information, and general inquiries.
         If someone wants to book a court, collect their name, phone number, preferred date, time, and court number.`;
 
-      // TwiML response to connect to Media Stream
-      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-          <Connect>
-            <Stream url="wss://${req.headers.host}/api/twilio/media-stream" />
-          </Connect>
-        </Response>`;
+  const streamUrl = `wss://${process.env.RENDER_EXTERNAL_HOSTNAME || req.headers.host}/api/twilio/media-stream`;
+
+const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">Hi there! Connecting you to the AI receptionist now.</Say>
+  <Connect>
+    <Stream url="${streamUrl}" />
+  </Connect>
+</Response>`;
+
 
       res.type('text/xml');
       res.send(twiml);
