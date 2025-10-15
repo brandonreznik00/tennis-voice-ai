@@ -7,7 +7,8 @@ import { OpenAIRealtimeClient } from "./openai-realtime";
 import { insertCallSchema, insertBookingSchema, insertClubSettingsSchema } from "@shared/schema";
 import { handleVoice } from "./voice.js";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+async function registerRoutes(app: Express): Promise<Server> {
+
   const httpServer = createServer(app);
 
   // ✅ Twilio incoming webhook
@@ -449,3 +450,4 @@ console.log("✅ Sending TwiML to Twilio:", twiml);
 
   return httpServer;
 }
+export { registerRoutes };
