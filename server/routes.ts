@@ -22,9 +22,15 @@ const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream"
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
-  // Send ping every 5 seconds to keep Twilio connection open
+  let lastPing = Date.now();
+
+  // Send pings to keep connection alive
   const pingInterval = setInterval(() => {
-    if (ws.readyState === ws.OPEN) {
+    if (Date.now() - lastPing > 10000) {
+      console.log("⚠️ No pings from Twilio for 10s, closing stream.");
+      clearInterval(pingInterval);
+      ws.close();
+    } else if (ws.readyState === ws.OPEN) {
       ws.ping();
     }
   }, 5000);
@@ -36,25 +42,28 @@ mediaWss.on("connection", (ws) => {
       if (data.event === "start") {
         console.log("🎯 Stream started:", data.start.streamSid);
       } else if (data.event === "media") {
-        // Acknowledge incoming audio
-        console.log("🎧 Audio packet received:", data.media.payload.length);
+        // Twilio sends base64 audio packets ~20x per second
+        const audio = Buffer.from(data.media.payload, "base64");
+        if (audio.length > 0) {
+          console.log("🎧 Received audio packet:", audio.length);
+        }
+        // ✅ Keep-alive ACK: prevents Twilio from thinking connection died
+        ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
       } else if (data.event === "stop") {
-        console.log("🛑 Stream stopped:", data.stop);
+        console.log("🛑 Stream stopped");
         clearInterval(pingInterval);
         ws.close();
       }
     } catch (err) {
-      console.error("⚠️ Error parsing Twilio message:", err);
+      console.error("⚠️ Error handling Twilio message:", err);
     }
   });
+
+  ws.on("ping", () => (lastPing = Date.now()));
 
   ws.on("close", () => {
     clearInterval(pingInterval);
     console.log("❌ Media stream closed");
-  });
-
-  ws.on("error", (err) => {
-    console.error("⚠️ WebSocket error:", err);
   });
 });
 
