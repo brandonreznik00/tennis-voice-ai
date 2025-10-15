@@ -23,11 +23,25 @@ mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
   ws.on("message", (msg) => {
-    console.log("📡 Incoming audio frame from Twilio:", msg.toString().slice(0, 60));
-    // TODO: Later — forward this audio to OpenAI Realtime API
+    try {
+      const data = JSON.parse(msg.toString());
+
+      if (data.event === "start") {
+        console.log("🎯 Stream started:", data.start.streamSid);
+      } else if (data.event === "media") {
+        console.log("🎧 Audio packet received:", data.media.payload.length);
+      } else if (data.event === "stop") {
+        console.log("🛑 Stream stopped:", data.stop);
+        ws.close();
+      }
+    } catch (err) {
+      console.error("⚠️ Error parsing Twilio message:", err);
+    }
   });
 
-  ws.on("close", () => console.log("❌ Media stream closed"));
+  ws.on("close", () => {
+    console.log("❌ Media stream closed");
+  });
 });
 
   // WebSocket server for real-time updates and call handling
