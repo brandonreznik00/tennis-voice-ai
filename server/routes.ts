@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -6,8 +6,8 @@ import { getTwilioClient, getTwilioFromPhoneNumber } from "./twilio-client";
 import { OpenAIRealtimeClient } from "./openai-realtime";
 import { insertCallSchema, insertBookingSchema, insertClubSettingsSchema } from "@shared/schema";
 import voiceRouter from "./voice";
-const router = express.Router();
 
+const router = express.Router();
 router.use("/api/twilio/incoming", voiceRouter);
 
 
