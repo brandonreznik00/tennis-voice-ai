@@ -15,12 +15,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
+  // 👇 Immediately acknowledge connection to Twilio
+  ws.send(JSON.stringify({ event: "connected" }));
+
   let lastPing = Date.now();
 
-  // Send keepalive pings every 5 seconds to prevent Twilio timeout
+  // 🟢 Keepalive every 5s to prevent timeout
   const pingInterval = setInterval(() => {
     if (Date.now() - lastPing > 15000) {
-      console.log("⚠️ No pings for 15s — closing stream");
+      console.log("⚠️ No audio for 15s — closing stream.");
       ws.close();
       clearInterval(pingInterval);
     } else if (ws.readyState === ws.OPEN) {
@@ -35,20 +38,23 @@ mediaWss.on("connection", (ws) => {
       if (data.event === "start") {
         console.log("🎯 Stream started:", data.start.streamSid);
       } else if (data.event === "media") {
-        lastPing = Date.now(); // update ping timestamp
+        lastPing = Date.now();
+        // Optional: log audio packet sizes
+        // const audio = Buffer.from(data.media.payload, "base64");
+        // console.log("🎧 Audio:", audio.length);
       } else if (data.event === "stop") {
         console.log("🛑 Stream stopped");
         clearInterval(pingInterval);
         ws.close();
       }
     } catch (err) {
-      console.error("⚠️ Error handling Twilio message:", err);
+      console.error("⚠️ Error parsing Twilio message:", err);
     }
   });
 
   ws.on("close", () => {
-    console.log("❌ Media stream closed");
     clearInterval(pingInterval);
+    console.log("❌ Media stream closed");
   });
 });
 
