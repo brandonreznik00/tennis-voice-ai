@@ -420,6 +420,4 @@ console.log("✅ Sending TwiML to Twilio:", twiml);
   });
 
 
-export { registerRoutes };
-
 
