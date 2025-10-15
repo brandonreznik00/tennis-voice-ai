@@ -22,6 +22,13 @@ const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream"
 mediaWss.on("connection", (ws) => {
   console.log("✅ Twilio Media Stream connected!");
 
+  // Send ping every 5 seconds to keep Twilio connection open
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === ws.OPEN) {
+      ws.ping();
+    }
+  }, 5000);
+
   ws.on("message", (msg) => {
     try {
       const data = JSON.parse(msg.toString());
@@ -29,9 +36,11 @@ mediaWss.on("connection", (ws) => {
       if (data.event === "start") {
         console.log("🎯 Stream started:", data.start.streamSid);
       } else if (data.event === "media") {
+        // Acknowledge incoming audio
         console.log("🎧 Audio packet received:", data.media.payload.length);
       } else if (data.event === "stop") {
         console.log("🛑 Stream stopped:", data.stop);
+        clearInterval(pingInterval);
         ws.close();
       }
     } catch (err) {
@@ -40,9 +49,15 @@ mediaWss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
+    clearInterval(pingInterval);
     console.log("❌ Media stream closed");
   });
+
+  ws.on("error", (err) => {
+    console.error("⚠️ WebSocket error:", err);
+  });
 });
+
 
   // WebSocket server for real-time updates and call handling
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
