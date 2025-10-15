@@ -17,7 +17,6 @@ async function registerRoutes(app: Express): Promise<Server> {
 // Store active call sessions
 const activeSessions = new Map<string, { twilioWs: WebSocket; openaiClient: OpenAIRealtimeClient; callId: string; streamSid: string }>();
 
-export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 // WebSocket endpoint for Twilio Media Stream
 
