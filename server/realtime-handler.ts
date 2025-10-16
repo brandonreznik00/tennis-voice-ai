@@ -2,9 +2,9 @@ import WebSocket from "ws";
 
 // Handles each incoming Twilio audio stream connection
 export function setupRealtime(ws: WebSocket) {
-  console.log("🧠 Starting AI receptionist session...");
+  console.log("🧠 setupRealtime() called — starting Twilio ping loop");
 
-  // 🔁 Twilio requires some activity or it will hang up.
+  // 🔁 Keep Twilio stream alive so it doesn't hang up
   const keepAlive = setInterval(() => {
     try {
       ws.send(JSON.stringify({ event: "mark", mark: { name: "ping" } }));
@@ -13,6 +13,14 @@ export function setupRealtime(ws: WebSocket) {
       clearInterval(keepAlive);
     }
   }, 2000);
+
+  // 🟢 Send one immediate ping when connection opens
+  try {
+    ws.send(JSON.stringify({ event: "mark", mark: { name: "initial_ping" } }));
+    console.log("📡 Sent initial keep-alive to Twilio");
+  } catch (err) {
+    console.error("Ping error:", err);
+  }
 
   // 🧠 Connect to OpenAI Realtime API
   const openaiWs = new WebSocket(
@@ -28,13 +36,13 @@ export function setupRealtime(ws: WebSocket) {
   openaiWs.on("open", () => {
     console.log("🔗 Connected to OpenAI Realtime API");
 
-    // Initial AI greeting
+    // Optional: send an initial greeting
     openaiWs.send(
       JSON.stringify({
         type: "response.create",
         response: {
           instructions:
-            "You are a friendly AI receptionist for a tennis club. Greet the caller, ask how you can help, and reply naturally in short, conversational sentences.",
+            "You are a friendly AI receptionist for a tennis club. Greet the caller, ask how you can help, and speak naturally in short sentences.",
           modalities: ["audio"],
           audio_format: "wav",
           voice: "alloy",
@@ -47,13 +55,13 @@ export function setupRealtime(ws: WebSocket) {
     console.error("❌ OpenAI WebSocket error:", err);
   });
 
-  // 🎧 Handle incoming audio/events from Twilio
+  // 🎧 Incoming events from Twilio
   ws.on("message", (msg) => {
     try {
       const data = JSON.parse(msg.toString());
 
       if (data.event === "media") {
-        // Caller’s audio chunks (base64 PCM16) → OpenAI
+        // Forward caller audio to OpenAI
         openaiWs.send(
           JSON.stringify({
             type: "input_audio_buffer.append",
@@ -61,7 +69,7 @@ export function setupRealtime(ws: WebSocket) {
           })
         );
       } else if (data.event === "mark" || data.event === "stop") {
-        // Tell OpenAI to start responding
+        // Tell OpenAI to respond
         openaiWs.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
         openaiWs.send(JSON.stringify({ type: "response.create" }));
       }
@@ -70,12 +78,11 @@ export function setupRealtime(ws: WebSocket) {
     }
   });
 
-  // 🔊 Handle AI → Twilio audio stream
+  // 🔊 OpenAI → Twilio audio stream
   openaiWs.on("message", (msg) => {
     try {
       const data = JSON.parse(msg.toString());
 
-      // Send OpenAI’s audio response chunks to Twilio
       if (data.type === "response.output_audio.delta" && data.delta) {
         ws.send(
           JSON.stringify({
@@ -93,9 +100,9 @@ export function setupRealtime(ws: WebSocket) {
     }
   });
 
-  // 🧹 Clean up connections
-  ws.on("close", () => {
-    console.log("❌ Twilio socket closed.");
+  // 🧹 Connection cleanup + diagnostics
+  ws.on("close", (code, reason) => {
+    console.log("❌ Twilio socket closed — code:", code, "reason:", reason.toString());
     clearInterval(keepAlive);
     openaiWs.close();
   });
