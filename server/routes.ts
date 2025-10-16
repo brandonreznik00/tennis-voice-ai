@@ -4,66 +4,50 @@ import { WebSocketServer } from "ws";
 import handleVoice from "./voice.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // ✅ Create the HTTP + WebSocket server
+  // ✅ Create HTTP + WebSocket server
   const httpServer = createServer(app);
 
-  // ✅ Twilio incoming call webhook
+  // ✅ Twilio incoming webhook
   app.post("/api/twilio/incoming", handleVoice);
 
-  // ✅ Twilio Media Stream endpoint
+  // ✅ Twilio Media Stream WebSocket endpoint
   const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream" });
-mediaWss.on("connection", (ws) => {
-  console.log("✅ Twilio Media Stream connected!");
 
-  // 👇 Immediately acknowledge connection to Twilio
-  ws.send(JSON.stringify({ event: "connected" }));
+  mediaWss.on("connection", (ws) => {
+    console.log("✅ Twilio Media Stream connected!");
 
-  let lastPing = Date.now();
+    // ✅ Send connection ACK (Twilio requires this immediately)
+    ws.send(JSON.stringify({ event: "connected" }));
 
-  // 🟢 Keepalive every 5s to prevent timeout
-  const pingInterval = setInterval(() => {
-    if (Date.now() - lastPing > 15000) {
-      console.log("⚠️ No audio for 15s — closing stream.");
-      ws.close();
-      clearInterval(pingInterval);
-    } else if (ws.readyState === ws.OPEN) {
-      ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
-    }
-  }, 5000);
+    ws.on("message", (msg) => {
+      try {
+        const data = JSON.parse(msg.toString());
 
-  ws.on("message", (msg) => {
-    try {
-      const data = JSON.parse(msg.toString());
-
-      if (data.event === "start") {
-        console.log("🎯 Stream started:", data.start.streamSid);
-      } else if (data.event === "media") {
-        lastPing = Date.now();
-        // Optional: log audio packet sizes
-        // const audio = Buffer.from(data.media.payload, "base64");
-        // console.log("🎧 Audio:", audio.length);
-      } else if (data.event === "stop") {
-        console.log("🛑 Stream stopped");
-        clearInterval(pingInterval);
-        ws.close();
+        if (data.event === "start") {
+          console.log("🎯 Stream started:", data.start.streamSid);
+        } else if (data.event === "media") {
+          // Media packets come in ~20x/sec
+          // You can later pipe this to OpenAI Realtime or Deepgram
+          console.log("🎧 Audio packet received:", data.media.payload.length);
+          // Keep alive acknowledgment
+          ws.send(JSON.stringify({ event: "mark", name: "keepalive" }));
+        } else if (data.event === "stop") {
+          console.log("🛑 Stream stopped by Twilio");
+        }
+      } catch (err) {
+        console.error("⚠️ Error handling Twilio message:", err);
       }
-    } catch (err) {
-      console.error("⚠️ Error parsing Twilio message:", err);
-    }
+    });
+
+    ws.on("close", () => {
+      console.log("❌ Media stream closed");
+    });
   });
 
-  ws.on("close", () => {
-    clearInterval(pingInterval);
-    console.log("❌ Media stream closed");
-  });
-});
-
-
-  // ✅ Optional: WebSocket for client dashboard
+  // ✅ Optional: WebSocket for internal client/dashboard connections
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   wss.on("connection", () => console.log("📡 Client WebSocket connected"));
 
   // ✅ Return server for Render
   return httpServer;
 }
-
