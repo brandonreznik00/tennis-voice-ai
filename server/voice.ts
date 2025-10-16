@@ -11,10 +11,11 @@ export const handleVoice = (req: Request, res: Response) => {
 
   // 🎧 Connect to your WebSocket media stream
   const connect = twiml.connect();
-  connect.stream({
-    url: "wss://tennis-voice-ai.onrender.com/media-stream", // ✅ must match your Render endpoint
-    track: "both_tracks",
-  });
+connect.stream({
+  url: "wss://tennis-voice-ai.onrender.com/media-stream",
+  track: "inbound_track",
+});
+
 
   // ✅ Respond to Twilio
   res.type("text/xml");
