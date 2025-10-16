@@ -29,6 +29,7 @@ app.post("/media-stream", (req: Request, res: Response) => {
 });
 
 (async () => {
+  // --- Register routes and start server ---
   const server = await registerRoutes(app);
 
   // --- WebSocket handler for Twilio Realtime Stream ---
@@ -38,17 +39,17 @@ app.post("/media-stream", (req: Request, res: Response) => {
     if (req.url === "/media-stream") {
       wss.handleUpgrade(req, socket, head, (ws) => {
         console.log("🔗 Twilio WebSocket connected");
-        setupRealtime(ws); // ✅ Connect Twilio stream to OpenAI Realtime logic
+        setupRealtime(ws); // ✅ Connect Twilio <Stream> → OpenAI Realtime handler
       });
     } else {
       socket.destroy();
     }
   });
 
-  // --- Start any internal realtime logic if needed ---
+  // --- Start internal realtime logic (optional) ---
   startRealtime(server);
 
-  // --- Error handler ---
+  // --- Global error handler ---
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
