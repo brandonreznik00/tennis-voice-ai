@@ -13,8 +13,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ Twilio Media Stream WebSocket endpoint
   const mediaWss = new WebSocketServer({ server: httpServer, path: "/media-stream" });
 
-  mediaWss.on("connection", (ws) => {
-    console.log("✅ Twilio Media Stream connected!");
+mediaWss.on("connection", (ws, req) => {
+  console.log("✅ Twilio Media Stream CONNECTED from", req.socket.remoteAddress);
 
     // ✅ Send connection ACK (Twilio requires this immediately)
     ws.send(JSON.stringify({ event: "connected" }));
