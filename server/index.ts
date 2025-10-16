@@ -4,75 +4,66 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import voiceRouter from "./voice";
 import { startRealtime } from "./realtime";
-
+import { WebSocketServer } from "ws"; // ✅ Added import
 
 const { app } = expressWs(express());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use("/api", voiceRouter);
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// --- Normal routes ---
+app.use("/", voiceRouter);
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
+// --- Twilio /media-stream route (HTTP endpoint) ---
+app.post("/media-stream", (req: Request, res: Response) => {
+  res.set("Content-Type", "text/xml");
+  res.send(`
+    <Response>
+      <Connect>
+        <Stream url="wss://${req.hostname}/media-stream" />
+      </Connect>
+    </Response>
+  `);
 });
 
 (async () => {
-  app.use("/", voiceRouter);  
-  
-const server = await registerRoutes(app);
+  const server = await registerRoutes(app);
+
+  // --- WebSocket handler for Twilio Realtime Stream ---
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url === "/media-stream") {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        console.log("🔗 Twilio WebSocket connected");
+        ws.on("message", (msg) => console.log("🎧 Received:", msg.toString()));
+        ws.on("close", () => console.log("❌ Twilio WebSocket disconnected"));
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
+  // --- Start OpenAI or Realtime logic ---
   startRealtime(server);
+
+  // --- Error handler ---
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // --- Vite setup (dev vs prod) ---
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     // serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // --- Launch server ---
+  const port = parseInt(process.env.PORT || "5000", 10);
+  server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+    log(`🚀 Server running on port ${port}`);
   });
 })();
