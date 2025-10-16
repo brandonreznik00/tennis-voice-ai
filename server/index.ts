@@ -4,7 +4,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import voiceRouter from "./voice";
 import { startRealtime } from "./realtime";
-import { WebSocketServer } from "ws"; // ✅ Added import
+import { WebSocketServer } from "ws";
+import { setupRealtime } from "./realtime-handler"; // ✅ import handler
 
 const { app } = expressWs(express());
 app.use(express.json());
@@ -18,6 +19,8 @@ app.post("/media-stream", (req: Request, res: Response) => {
   res.set("Content-Type", "text/xml");
   res.send(`
     <Response>
+      <Say voice="Polly.Joanna">Hi there! Connecting you to the AI receptionist now.</Say>
+      <Pause length="1"/>
       <Connect>
         <Stream url="wss://${req.hostname}/media-stream" />
       </Connect>
@@ -35,15 +38,14 @@ app.post("/media-stream", (req: Request, res: Response) => {
     if (req.url === "/media-stream") {
       wss.handleUpgrade(req, socket, head, (ws) => {
         console.log("🔗 Twilio WebSocket connected");
-        ws.on("message", (msg) => console.log("🎧 Received:", msg.toString()));
-        ws.on("close", () => console.log("❌ Twilio WebSocket disconnected"));
+        setupRealtime(ws); // ✅ Connect Twilio stream to OpenAI Realtime logic
       });
     } else {
       socket.destroy();
     }
   });
 
-  // --- Start OpenAI or Realtime logic ---
+  // --- Start any internal realtime logic if needed ---
   startRealtime(server);
 
   // --- Error handler ---
