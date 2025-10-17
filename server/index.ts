@@ -16,7 +16,8 @@ app.use("/", voiceRouter);
 
 // --- Twilio /media-stream route (TwiML response) ---
 app.post("/media-stream", (req: Request, res: Response) => {
-  const wsUrl = "wss://tennis-voice-ai-rough-smoke-959.fly.dev/media-stream"; // ✅ Fixed for Fly.io
+  // ✅ Update this to match your *new* Fly.io app URL
+  const wsUrl = "wss://tennis-voice-ai-dawn-wave-2090.fly.dev/media-stream";
 
   console.log("📞 Incoming call hit the webhook");
 
@@ -66,12 +67,15 @@ app.post("/media-stream", (req: Request, res: Response) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    // serveStatic(app);
+    // ✅ Enable static serving in production
+    serveStatic(app);
   }
 
   // --- Launch server ---
+  // ✅ Ensure it listens on 0.0.0.0:8080 for Fly.io
   const port = parseInt(process.env.PORT || "8080", 10);
-  server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
-    log(`🚀 Server running on port ${port}`);
+  const host = "0.0.0.0"; // required for Fly
+  server.listen(port, host, () => {
+    log(`🚀 Server running on http://${host}:${port}`);
   });
 })();
